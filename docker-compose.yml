@@ -1,0 +1,62 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-hotel-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - microservicios-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  svc-rooms:
+    build:
+      context: ./svc-rooms
+      dockerfile: Dockerfile
+    container_name: svc-rooms-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/rooms_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8081:8081"
+    networks:
+      - microservicios-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  svc-reservations:
+    build:
+      context: ./svc-reservations
+      dockerfile: Dockerfile
+    container_name: svc-reservations-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reservations_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8082:8082"
+    networks:
+      - microservicios-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+networks:
+  microservicios-network:
+    driver: bridge
