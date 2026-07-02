@@ -77,6 +77,7 @@ public class ReservationServiceImplement implements ReservationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Reservacion no enocontrado con id: " + id));
         validateCheckDate(reservation.getCheckInDate(), checkOutDate);
         reservation.setCheckOutDate(checkOutDate);
+        reservation.setStatus(Status.COMPLETED);
         Reservation updateReservation = reservationRepository.save(reservation);
         log.info("Reservacion actualizado exitosamente para a reserva con id: {}", updateReservation.getId());
         return reservationMapper.toResponse(updateReservation, new RoomResponse());
