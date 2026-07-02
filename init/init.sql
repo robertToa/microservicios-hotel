@@ -1,2 +1,2 @@
-CREATE DATABASE rooms_db;
-CREATE DATABASE reservations_db;
+CREATE DATABASE rooms_db with encoding="UTF-8";
+CREATE DATABASE reservations_db with encoding="UTF-8";
