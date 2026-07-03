@@ -76,6 +76,10 @@ public class ReservationServiceImplement implements ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservacion no enocontrado con id: " + id));
         validateCheckDate(reservation.getCheckInDate(), checkOutDate);
+        if(reservationRepository.existsByRoomIdAndStatus(reservation.getRoomId(), Status.COMPLETED) ||
+                reservationRepository.existsByRoomIdAndStatus(reservation.getRoomId(), Status.CANCELLED)){
+            throw new BusinessRuleException("La reserva no se encuentra activa: " + reservation.getRoomId());
+        }
         reservation.setCheckOutDate(checkOutDate);
         reservation.setStatus(Status.COMPLETED);
         Reservation updateReservation = reservationRepository.save(reservation);
