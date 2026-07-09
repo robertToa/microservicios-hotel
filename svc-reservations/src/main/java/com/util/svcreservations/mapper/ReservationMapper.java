@@ -25,7 +25,7 @@ public class ReservationMapper {
                 .build();
     }
 
-    public ReservationResponse toResponse(Reservation reservation, RoomResponse roomResponse){
+    public ReservationResponse toResponse(Reservation reservation){
         return ReservationResponse.builder()
                 .id(reservation.getId())
                 .roomId(reservation.getRoomId())
@@ -36,9 +36,16 @@ public class ReservationMapper {
                 .status(reservation.getStatus())
                 .totalNights(reservation.getTotalNights())
                 .createdAt(reservation.getCreatedAt())
-                .roomNumber(roomResponse.getRoomNumber())
-                .roomType(roomResponse.getRoomType())
-                .pricePerNight(roomResponse.getPricePerNight())
                 .build();
+    }
+
+    public ReservationResponse toResponseWithRoom(Reservation reservation, RoomResponse roomResponse){
+        ReservationResponse reservationResponse = toResponse(reservation);
+        if( roomResponse !=null){
+            reservationResponse.setRoomNumber(roomResponse.getRoomNumber());
+            reservationResponse.setRoomType(roomResponse.getType());
+            reservationResponse.setPricePerNight(roomResponse.getPricePerNight());
+        }
+        return reservationResponse;
     }
 }

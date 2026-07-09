@@ -1,7 +1,9 @@
 package com.util.svcreservations.service.impl;
 
+import com.util.svcreservations.client.RoomWebClient;
 import com.util.svcreservations.dto.ReservationRequest;
 import com.util.svcreservations.dto.ReservationResponse;
+import com.util.svcreservations.dto.RoomAvailabilityResponse;
 import com.util.svcreservations.dto.RoomResponse;
 import com.util.svcreservations.exception.BusinessRuleException;
 import com.util.svcreservations.exception.DuplicateResourceException;
@@ -27,6 +29,7 @@ public class ReservationServiceImplement implements ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final ReservationMapper reservationMapper;
+    private final RoomWebClient roomWebClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -34,7 +37,8 @@ public class ReservationServiceImplement implements ReservationService {
         log.info("Obteniendo la reserva con id: {}", id);
         Reservation reservation =  reservationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservacion no enocontrado con el id: "+ id));
-        return reservationMapper.toResponse(reservation, new RoomResponse());
+        RoomResponse room = roomWebClient.getRoomById(reservation.getRoomId());
+        return reservationMapper.toResponseWithRoom(reservation, room);
     }
 
     @Override
@@ -44,11 +48,20 @@ public class ReservationServiceImplement implements ReservationService {
         if(reservationRepository.existsByRoomIdAndStatus(reservationRequest.getRoomId(), Status.ACTIVE)){
             throw new DuplicateResourceException("Ya existe una reserva activa con el room id: " + reservationRequest.getRoomId());
         }
+        log.info("Verificando disponibilidad del departamento via WebClient...");
+        RoomAvailabilityResponse availabilityResponse = roomWebClient.getRoomAvailability(reservationRequest.getRoomId());
+        if(!availabilityResponse.getAvailable()){
+            throw new BusinessRuleException(
+                    "Departamento con id: "+ reservationRequest.getRoomId() +
+                            "No tiene cuartos disponible " + availabilityResponse.getAvailableRooms()
+            );
+        }
         validateCheckDate(reservationRequest.getCheckInDate(), reservationRequest.getCheckOutDate());
         Reservation reservation = reservationMapper.toEntity(reservationRequest);
         Reservation saveReservation = reservationRepository.save(reservation);
         log.info("Reservacion creado exitosamente con el id: {}", saveReservation.getId());
-        return reservationMapper.toResponse(saveReservation, new RoomResponse());
+        RoomResponse room = roomWebClient.getRoomById(saveReservation.getRoomId());
+        return reservationMapper.toResponseWithRoom(saveReservation, room);
     }
 
     private void validateCheckDate(LocalDate checkInDate, LocalDate checkOutDate){
@@ -64,7 +77,12 @@ public class ReservationServiceImplement implements ReservationService {
         return reservationRepository.findByGuestEmail(guestEmail)
                 .stream()
                 .map(reservation -> {
-                    return reservationMapper.toResponse(reservation, new RoomResponse());
+                    try{
+                        RoomResponse room = roomWebClient.getRoomById(reservation.getRoomId());
+                        return reservationMapper.toResponseWithRoom(reservation, room);
+                    }catch (Exception ex ){
+                        return reservationMapper.toResponse(reservation);
+                    }
                 })
                 .collect(Collectors.toList());
     }
@@ -84,6 +102,7 @@ public class ReservationServiceImplement implements ReservationService {
         reservation.setStatus(Status.COMPLETED);
         Reservation updateReservation = reservationRepository.save(reservation);
         log.info("Reservacion actualizado exitosamente para a reserva con id: {}", updateReservation.getId());
-        return reservationMapper.toResponse(updateReservation, new RoomResponse());
+        RoomResponse room = roomWebClient.getRoomById(reservation.getRoomId());
+        return reservationMapper.toResponseWithRoom(updateReservation, room);
     }
 }

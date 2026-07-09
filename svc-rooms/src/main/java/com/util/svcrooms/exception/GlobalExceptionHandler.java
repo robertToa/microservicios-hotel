@@ -83,12 +83,12 @@ public class GlobalExceptionHandler {
 
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .status(HttpStatus.UNPROCESSABLE_CONTENT.value())
+                .error(HttpStatus.UNPROCESSABLE_CONTENT.getReasonPhrase())
                 .message("Validacion fallida: " + validationErrors)
                 .path(httpServletRequest.getRequestURI())
                 .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(errorResponse);
     }
 
     //Manejo de cualquiera excepcion

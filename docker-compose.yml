@@ -1,21 +1,40 @@
 version: "3.8"
 
 services:
-  postgres:
+  rooms-db:
     image: postgres:16-alpine
-    container_name: postgres-hotel-db
+    container_name: rooms-hotel-db
     environment:
+      POSTGRES_DB: rooms_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d
+      - rooms-db-data:/var/lib/postgresql/data
     networks:
       - microservicios-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U rooms_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  reservations-db:
+    image: postgres:16-alpine
+    container_name: reservations-hotel-db
+    environment:
+      POSTGRES_DB: reservations_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - reservations-db-data:/var/lib/postgresql/data
+    networks:
+      - microservicios-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U reservations_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +45,7 @@ services:
       dockerfile: Dockerfile
     container_name: svc-rooms-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/rooms_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://rooms-db:5432/rooms_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
@@ -35,7 +54,7 @@ services:
     networks:
       - microservicios-network
     depends_on:
-      postgres:
+      rooms-db:
         condition: service_healthy
 
   svc-reservations:
@@ -44,7 +63,7 @@ services:
       dockerfile: Dockerfile
     container_name: svc-reservations-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reservations_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://reservations-db:5432/reservations_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
@@ -53,11 +72,27 @@ services:
     networks:
       - microservicios-network
     depends_on:
-      postgres:
+      reservations-db:
         condition: service_healthy
+      svc-rooms:
+        condition: service_started
+
+  nginx-gateway:
+    image: nginx:alpine
+    container_name: nginx-gateway
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - microservicios-network
+    depends_on:
+      - svc-rooms
+      - svc-reservations
 
 volumes:
-  postgres_data:
+  rooms-db-data:
+  reservations-db-data:
 networks:
   microservicios-network:
     driver: bridge
