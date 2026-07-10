@@ -107,4 +107,22 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
+
+    @ExceptionHandler(RoomServiceException.class)
+    public ResponseEntity<ErrorResponse> handleRoomServiceException(
+            RoomServiceException ex,
+            HttpServletRequest request) {
+
+        log.error("Error del servicio de catálogo: {} - Path: {}", ex.getMessage(), request.getRequestURI());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .error(HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase())
+                .message("El servicio de rooms no está disponible actualmente.: " + ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+    }
 }
