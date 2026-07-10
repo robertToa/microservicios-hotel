@@ -1,5 +1,6 @@
 package com.util.svcreservations.service.impl;
 
+import com.util.svcreservations.client.RoomRestTemplate;
 import com.util.svcreservations.client.RoomWebClient;
 import com.util.svcreservations.dto.ReservationRequest;
 import com.util.svcreservations.dto.ReservationResponse;
@@ -34,6 +35,7 @@ public class ReservationServiceImplement implements ReservationService {
     private final ReservationRepository reservationRepository;
     private final ReservationMapper reservationMapper;
     private final RoomWebClient roomWebClient;
+    private final RoomRestTemplate roomRestTemplate;
 
     @Override
     @Transactional(readOnly = true)
@@ -43,7 +45,7 @@ public class ReservationServiceImplement implements ReservationService {
         log.info("Obteniendo la reserva con id: {}", id);
         Reservation reservation =  reservationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservacion no enocontrado con el id: "+ id));
-        RoomResponse room = roomWebClient.getRoomById(reservation.getRoomId());
+        RoomResponse room = roomRestTemplate.getRoomById(reservation.getRoomId());
         return reservationMapper.toResponseWithRoom(reservation, room);
     }
 
@@ -69,7 +71,7 @@ public class ReservationServiceImplement implements ReservationService {
             throw new BusinessRuleException("Ya existe una reserva activa con el room id: " + reservationRequest.getRoomId());
         }
         log.info("Verificando disponibilidad del departamento via WebClient...");
-        RoomAvailabilityResponse availabilityResponse = roomWebClient.getRoomAvailability(reservationRequest.getRoomId());
+        RoomAvailabilityResponse availabilityResponse = roomRestTemplate.getRoomAvailability(reservationRequest.getRoomId());
         if(!availabilityResponse.getAvailable()){
             throw new BusinessRuleException(
                     "Departamento con id: "+ reservationRequest.getRoomId() +
@@ -119,8 +121,6 @@ public class ReservationServiceImplement implements ReservationService {
 
     @Override
     @Transactional
-    @CircuitBreaker(name = "roomsService", fallbackMethod = "updateCheckOutDateFallback")
-    @Retry(name = "roomsService")
     public ReservationResponse updateCheckOutDate(Long id, LocalDate checkOutDate){
         log.info("Actualizacion fecha de salida de la reservacion id: {} , fecha de salida {}", id, checkOutDate);
         Reservation reservation = reservationRepository.findById(id)
@@ -134,7 +134,7 @@ public class ReservationServiceImplement implements ReservationService {
         reservation.setStatus(Status.COMPLETED);
         Reservation updateReservation = reservationRepository.save(reservation);
         log.info("Reservacion actualizado exitosamente para a reserva con id: {}", updateReservation.getId());
-        RoomResponse room = roomWebClient.getRoomById(reservation.getRoomId());
+        RoomResponse room = roomRestTemplate.getRoomById(reservation.getRoomId());
         return reservationMapper.toResponseWithRoom(updateReservation, room);
     }
 }
